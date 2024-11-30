@@ -54,7 +54,9 @@ class ClientRequestWatcher extends Watcher
      */
     public function recordResponse(ResponseReceived $event)
     {
-        if (! Telescope::isRecording()) {
+        if (! Telescope::isRecording() ||
+	        $this->shouldIgnoreHttpMethod($event) ||
+	        $this->shouldIgnoreStatusCode($event)) {
             return;
         }
 
@@ -69,6 +71,36 @@ class ClientRequestWatcher extends Watcher
             'duration' => $this->duration($event->response),
         ]));
     }
+
+	/**
+	 * Determine if the request should be ignored based on its method.
+	 *
+	 * @param  mixed  $event
+	 * @return bool
+	 */
+	protected function shouldIgnoreHttpMethod($event)
+	{
+		return in_array(
+			strtolower($event->request->method()),
+			collect($this->options['ignore_http_methods'] ?? [])->map(function ($method) {
+				return strtolower($method);
+			})->all()
+		);
+	}
+
+	/**
+	 * Determine if the request should be ignored based on its status code.
+	 *
+	 * @param  mixed  $event
+	 * @return bool
+	 */
+	protected function shouldIgnoreStatusCode($event)
+	{
+		return in_array(
+			$event->response->getStatusCode(),
+			$this->options['ignore_status_codes'] ?? []
+		);
+	}
 
     /**
      * Determine if the content is within the set limits.
